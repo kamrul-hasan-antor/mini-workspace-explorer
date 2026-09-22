@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mini Workspace Explorer
 
-## Getting Started
+A VS Code–inspired file explorer built with Next.js. Browse a virtual workspace tree, create and rename folders and text files, search by name or content, edit files in the main pane, and persist everything in the browser via `localStorage`.
 
-First, run the development server:
+## How to run
+
+**Requirements:** Node.js 20+ and npm.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script        | Description              |
+| ------------- | ------------------------ |
+| `npm run dev` | Development server       |
+| `npm run build` | Production build       |
+| `npm start`   | Serve production build   |
+| `npm run lint` | Run ESLint              |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project structure
 
-## Learn More
+```
+mini-workspace/
+├── app/                    # Next.js App Router
+│   ├── layout.tsx          # Root layout, fonts, global metadata
+│   ├── page.tsx            # Home page (renders <Home />)
+│   └── globals.css         # Theme CSS variables (dark VS Code–like palette)
+├── components/
+│   ├── home.tsx            # Shell: provider, header, activity bar, sidebars, main view
+│   ├── activitybar.tsx     # Explorer / Search panel switcher
+│   ├── sidebar.tsx         # File tree, CRUD, context menu, toolbar actions
+│   ├── searchSidebar.tsx   # Search by file/folder name or file content
+│   ├── workspaceView.tsx   # Folder listing or file editor
+│   ├── workspaceHeader.tsx # Open file tab with draft indicator and close
+│   ├── breadcrumb.tsx      # Path navigation for selection / open file
+│   └── header.tsx          # Top bar and mobile sidebar toggle
+├── context/
+│   └── workspaceProvider.tsx  # Workspace state, persistence, shared actions
+└── lib/
+    ├── data.ts             # Inital Data
+    └── types.ts            # `itemType`, `localDataType`, etc.
+```
 
-To learn more about Next.js, take a look at the following resources:
+## State management
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Workspace data lives in a **React Context** (`WorkspaceProvider`) with a `useWorkspaceContext()` hook.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Initial load:** On the client, state is read from `localStorage` (key `mini-workspace-data`). If missing or invalid JSON, the app seeds defaults from `createItems()` in `lib/data.ts` and writes them back.
+- **Updates:** `setWorkspaceData` updates React state and synchronously persists the full `localDataType` object to `localStorage`.
+- **Loading gate:** The provider shows a loading UI until hydration from storage completes, avoiding SSR/client mismatches on the tree.
+- **Local UI state:** Panel choice (Explorer vs Search), search query, mobile sidebar open/closed, inline rename/create inputs, and unsaved editor text are kept in component state where they do not need to be persisted.
 
-## Deploy on Vercel
+Context exposes helpers: `toggleFolder`, `expandFolder`, `saveFile`, and `closeOpenFile`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## File-system data structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The virtual filesystem is a **flat map** of items keyed by `id`, not a deeply nested JSON tree on disk.
+
+### `itemType`
+
+| Field       | Description                                      |
+| ----------- | ------------------------------------------------ |
+| `id`        | Unique string (timestamp for user-created items) |
+| `name`      | Display name                                     |
+| `type`      | `"folder"` or `"file"`                           |
+| `parentId`  | Parent folder id, or `null` for the root         |
+| `content`   | Text body (files only)                           |
+| `isNew`     | Inline create in progress (stripped on finalize) |
+
+The optional `children` array on `itemType` is **derived at render time** in `buildItemArray()` inside `sidebar.tsx`; persisted data only uses `parentId` links.
+
+### `localDataType` (persisted blob)
+
+```ts
+{
+  items: Record<string, itemType>;
+  selectedFolderId: string | null;   // folder shown in main pane when no file is open
+  openFileId: string | null;         // file open in the editor
+  expandedFolderIds: string[];       // which folders are expanded in the tree
+}
+```
+
+Parent/child relationships are resolved by matching each item’s `parentId` to another item’s `id`. Deleting a folder recursively removes that item and all descendants from `items` and cleans selection/expansion state.
+
+## Important implementation decisions
+
+1. **Flat map + adjacency list** — Storing `Record<string, itemType>` with `parentId` keeps updates (rename, move parent context, delete subtree) simple and matches how the tree is rebuilt for the UI. Sibling ordering follows object insertion order from the map.
+
+2. **Single source of truth in context** — Explorer, search, breadcrumbs, and the editor all read/write the same `workspaceData`; search results expand folders along the path to the chosen item and set `openFileId` / `selectedFolderId` accordingly.
+
+3. **Editor draft vs persisted content** — The textarea keeps local `fileContent` and an `isDraft` flag; saving runs on **Ctrl/Cmd+S** via `saveFile`, which updates `items[id].content` and `localStorage`. Unsaved changes are indicated in the workspace header.
+
+4. **Create/rename UX** — New items are added with `isNew: true` and inline validation (non-empty name, no duplicate sibling names case-insensitively). Empty name on blur cancels creation; Escape cancels create/rename.
+
+5. **No backend** — Entirely client-side; reset in the Explorer toolbar restores the seed data from `createItems()` and default expansion (`workspace`, `projects`, `webbly`).
+
+6. **VS Code–like layout** — Activity bar, explorer/search sidebars, dark theme via CSS variables in `globals.css`, [Lucide](https://lucide.dev) icons. On small screens the sidebar is a slide-over drawer with an overlay; choosing a tree/search item closes it on viewports under 768px.
+
+7. **Next.js App Router** — Interactive pieces are `"use client"` components; the root page stays a thin server entry that renders `Home`.

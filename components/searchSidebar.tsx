@@ -37,9 +37,11 @@ function formatItemPath(
 const SearchSidebar = ({
   query,
   setQuery,
+  onNavigate,
 }: {
   query: string;
   setQuery: (query: string) => void;
+  onNavigate?: () => void;
 }) => {
   const { workspaceData, setWorkspaceData } = useWorkspaceContext();
 
@@ -87,10 +89,11 @@ const SearchSidebar = ({
       selectedFolderId: item.type === "folder" ? item.id : null,
       openFileId: item.type === "file" ? item.id : null,
     });
+    onNavigate?.();
   };
 
   return (
-    <div className="flex min-h-0 w-[260px] shrink-0 flex-col border-r border-r-[var(--border)] bg-[var(--bg-sidebar)]">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--bg-sidebar)] md:w-[260px] md:shrink-0">
       <div className="flex h-8 items-center border-b border-b-[var(--border)] px-3">
         <p className="min-w-0 flex-1 truncate text-xs text-[var(--text-muted)]">
           Search

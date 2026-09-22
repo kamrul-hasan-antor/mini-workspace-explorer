@@ -21,7 +21,7 @@ type ContextMenuState = {
   y: number;
 } | null;
 
-const Sidebar = () => {
+const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
   const [newItemName, setNewItemName] = useState("");
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
@@ -106,6 +106,7 @@ const Sidebar = () => {
         : { selectedFolderId: item.id, openFileId: null }),
     });
     setNewItemName("");
+    onNavigate?.();
     return { ok: true };
   };
 
@@ -210,11 +211,11 @@ const Sidebar = () => {
   }, [contextMenu]);
 
   return (
-    <div className="group relative min-h-0 border-r border-r bg-[var(--bg-sidebar)] md:w-[260px] border-r-[var(--border)]">
-      <div className="h-8 flex items-center px-3 border-b border-b-[var(--border)]">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-[var(--bg-sidebar)] md:w-[260px] md:shrink-0">
+      <div className="flex h-8 shrink-0 items-center border-b border-b-[var(--border)] px-3">
         <ActionArea onAddNewItem={handleAddNewItem} selectedId={selectedId} />
       </div>
-      <div className="py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto py-2">
         {itemArray.map((item) => (
           <TreeItem
             key={item.id}
@@ -248,6 +249,7 @@ const Sidebar = () => {
                 y: event.clientY,
               });
             }}
+            onNavigate={onNavigate}
           />
         ))}
       </div>
@@ -330,7 +332,7 @@ const ActionArea = ({
       <p className="min-w-0 flex-1 truncate text-xs text-[var(--text-muted)]">
         Explorer
       </p>
-      <div className="hidden group-hover:flex items-center flex-1 justify-end">
+      <div className="flex items-center flex-1 justify-end">
         <ActionButton
           icon={<FilePlusCorner className="size-3.5" />}
           onClick={() => {
@@ -405,6 +407,7 @@ function TreeItem({
   onFinalizeRename,
   onCancelRename,
   onContextMenuItem,
+  onNavigate,
 }: {
   item: itemType;
   depth: number;
@@ -428,6 +431,7 @@ function TreeItem({
   ) => { ok: true } | { ok: false; error: string };
   onCancelRename: () => void;
   onContextMenuItem: (event: React.MouseEvent, item: itemType) => void;
+  onNavigate?: () => void;
 }) {
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolderIds.includes(item.id);
@@ -466,6 +470,7 @@ function TreeItem({
             return;
           }
           onToggleFolder(item.id, isFolder);
+          onNavigate?.();
         }}
         onContextMenu={(event) => onContextMenuItem(event, item)}
       >
@@ -617,6 +622,7 @@ function TreeItem({
               onFinalizeRename={onFinalizeRename}
               onCancelRename={onCancelRename}
               onContextMenuItem={onContextMenuItem}
+              onNavigate={onNavigate}
             />
           ))
         : null}

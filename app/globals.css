@@ -28,4 +28,5 @@ body {
   color: var(--text-primary);
   font-family: var(--font-geist-sans), "Segoe UI", system-ui, sans-serif;
   font-size: 13px;
+  min-height: 100dvh;
 }

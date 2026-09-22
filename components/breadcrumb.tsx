@@ -17,7 +17,7 @@ const Breadcrumb = () => {
   }
 
   return (
-    <div className="border-b border-b-[var(--border)] px-2 py-1 text-xs">
+    <div className="shrink-0 overflow-x-auto border-b border-b-[var(--border)] px-2 py-1 text-xs">
       <nav
         aria-label="Breadcrumb"
         className="flex min-w-0 flex-wrap items-center gap-0.5"

@@ -8,10 +8,8 @@ import Breadcrumb from "./breadcrumb";
 
 const WorkspaceView = () => {
   const { workspaceData, toggleFolder, saveFile } = useWorkspaceContext();
-
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [isDraft, setIsDraft] = useState<boolean>(false);
-
   const itemArr = workspaceData.items ? Object.values(workspaceData.items) : [];
 
   const openFile = workspaceData.openFileId
@@ -30,11 +28,13 @@ const WorkspaceView = () => {
       setFileContent(
         workspaceData.items[workspaceData.openFileId]?.content ?? null,
       );
+
+      setIsDraft(false);
     }
-  }, [workspaceData.openFileId]);
+  }, [workspaceData.openFileId, workspaceData.items]);
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <WorkspaceHeader
         fileName={openFile ? openFile.name : null}
         folderName={
@@ -46,9 +46,9 @@ const WorkspaceView = () => {
 
       <Breadcrumb />
 
-      <div className="p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2 sm:p-3">
         {openFile ? (
-          <div className="flex min-h-[460px] flex-col">
+          <div className="flex h-full min-h-[12rem] flex-col">
             <textarea
               value={fileContent ?? ""}
               onChange={(e) => {
@@ -61,6 +61,7 @@ const WorkspaceView = () => {
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
                   e.preventDefault();
+
                   if (e.currentTarget.value !== openFile.content) {
                     saveFile(workspaceData.openFileId!, e.currentTarget.value);
                     setIsDraft(false);
@@ -68,19 +69,20 @@ const WorkspaceView = () => {
                 }
               }}
               spellCheck={false}
-              className="min-h-0 flex-1 resize-none bg-[var(--vscode-editor)] p-2 leading-6 text-[#d4d4d4] outline-none"
+              className="min-h-[12rem] flex-1 resize-none bg-[var(--vscode-editor)] p-2 leading-6 text-[#d4d4d4] outline-none sm:min-h-0"
             />
           </div>
         ) : folderChildren.length > 0 ? (
           folderChildren.map((item) => {
             const isFolder = item.type === "folder";
+
             return (
               <div
                 key={item.id}
                 onClick={() => toggleFolder(item.id, isFolder)}
               >
                 <div
-                  className={`flex min-w-0 cursor-pointer items-center gap-1 rounded px-3 py-1 hover:bg-[var(--bg-activitybar)]`}
+                  className={`flex min-w-0 cursor-pointer items-center gap-1 rounded px-2 py-1 hover:bg-[var(--bg-activitybar)] sm:px-3`}
                 >
                   {isFolder ? (
                     <Folder className="size-3.5 shrink-0 fill-[#dcb67a] stroke-[#dcb67a]" />
@@ -88,18 +90,17 @@ const WorkspaceView = () => {
                     <File className="size-4 shrink-0" />
                   )}
 
-                  <p className="min-w-0 truncate truncate select-none">
-                    {item.name}
-                  </p>
+                  <p className="min-w-0 truncate select-none">{item.name}</p>
                 </div>
               </div>
             );
           })
         ) : (
-          <div className="flex h-full min-h-[460px] flex-col items-center justify-center text-center">
+          <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center px-4 text-center sm:min-h-[16rem]">
             <p className="text-[13px] text-[var(--text-muted)]">
               This folder is empty
             </p>
+
             <p className="mt-1 text-[12px] text-[var(--text-muted)]">
               Use the Explorer toolbar to create a file or folder
             </p>
