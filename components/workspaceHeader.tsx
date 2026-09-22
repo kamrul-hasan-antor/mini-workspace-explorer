@@ -1,3 +1,4 @@
+import { useWorkspaceContext } from "@/context/workspaceProvider";
 import { File, X } from "lucide-react";
 
 export const WorkspaceHeader = ({
@@ -9,6 +10,8 @@ export const WorkspaceHeader = ({
   folderName: string | null;
   isDraft: boolean;
 }) => {
+  const { closeOpenFile } = useWorkspaceContext();
+
   return (
     <div className="flex items-center h-8 border-b border-b-[var(--border)] bg-[var(--bg-workspace-header)]">
       {fileName ? (
@@ -18,7 +21,12 @@ export const WorkspaceHeader = ({
             <p className="text-[var(--text-muted)]">{fileName}</p>
             {isDraft && <div className="size-1.25 bg-[#777] rounded-full" />}
           </div>
-          <button className="hover:bg-[var(--bg-header)] rounded cursor-pointer p-0.5">
+          <button
+            type="button"
+            onClick={closeOpenFile}
+            className="hover:bg-[var(--bg-header)] rounded cursor-pointer p-0.5"
+            aria-label="Close file"
+          >
             <X className="size-3" />
           </button>
         </div>

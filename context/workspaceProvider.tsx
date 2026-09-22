@@ -17,6 +17,7 @@ type WorkspaceContextValue = {
   toggleFolder: (id: string, isFolder: boolean) => void;
   saveFile: (id: string, content: string) => void;
   expandFolder: (id: string) => void;
+  closeOpenFile: () => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -75,9 +76,6 @@ export default function WorkspaceProvider({
         expandedFolderIds: expandedFolderIds.includes(id)
           ? expandedFolderIds
           : [...expandedFolderIds, id],
-        // expandedFolderIds: expandedFolderIds.includes(id)
-        //   ? expandedFolderIds.filter((folderId) => folderId !== id)
-        //   : [...expandedFolderIds, id],
         selectedFolderId: isFolder ? id : null,
         openFileId: isFolder ? null : id,
       });
@@ -115,6 +113,22 @@ export default function WorkspaceProvider({
     [workspaceData],
   );
 
+  const closeOpenFile = useCallback(() => {
+    if (!workspaceData?.openFileId) return;
+
+    const file = workspaceData.items[workspaceData.openFileId];
+    const parentId = file?.parentId ?? "workspace";
+
+    setWorkspaceData({
+      ...workspaceData,
+      openFileId: null,
+      selectedFolderId: parentId,
+      expandedFolderIds: workspaceData.expandedFolderIds.includes(parentId)
+        ? workspaceData.expandedFolderIds
+        : [...workspaceData.expandedFolderIds, parentId],
+    });
+  }, [workspaceData, setWorkspaceData]);
+
   if (isLoading || !workspaceData) {
     return (
       <div className="flex min-h-full flex-1 items-center justify-center bg-[var(--bg)] text-sm text-[var(--text-muted)]">
@@ -130,8 +144,9 @@ export default function WorkspaceProvider({
         setWorkspaceData,
         isLoading: false,
         toggleFolder,
-        saveFile, 
+        saveFile,
         expandFolder,
+        closeOpenFile,
       }}
     >
       {children}

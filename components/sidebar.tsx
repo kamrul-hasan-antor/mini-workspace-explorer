@@ -159,9 +159,9 @@ const ActionArea = ({
   };
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between w-full">
       <p className="min-w-0 flex-1 truncate text-xs text-[var(--text-muted)]">
-        Mini Workspace Explorer
+        Explorer
       </p>
       <div className="hidden group-hover:flex items-center flex-1 justify-end">
         <ActionButton
