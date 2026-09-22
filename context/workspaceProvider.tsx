@@ -16,6 +16,7 @@ type WorkspaceContextValue = {
   isLoading: boolean;
   toggleFolder: (id: string, isFolder: boolean) => void;
   saveFile: (id: string, content: string) => void;
+  expandFolder: (id: string) => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -72,10 +73,27 @@ export default function WorkspaceProvider({
       setWorkspaceData({
         ...workspaceData,
         expandedFolderIds: expandedFolderIds.includes(id)
-          ? expandedFolderIds.filter((folderId) => folderId !== id)
+          ? expandedFolderIds
           : [...expandedFolderIds, id],
+        // expandedFolderIds: expandedFolderIds.includes(id)
+        //   ? expandedFolderIds.filter((folderId) => folderId !== id)
+        //   : [...expandedFolderIds, id],
         selectedFolderId: isFolder ? id : null,
         openFileId: isFolder ? null : id,
+      });
+    },
+    [workspaceData],
+  );
+
+  const expandFolder = useCallback(
+    (id: string) => {
+      if (!workspaceData) return;
+      const { expandedFolderIds } = workspaceData;
+      setWorkspaceData({
+        ...workspaceData,
+        expandedFolderIds: expandedFolderIds.includes(id)
+          ? expandedFolderIds.filter((folderId) => folderId !== id)
+          : [...expandedFolderIds, id],
       });
     },
     [workspaceData],
@@ -112,7 +130,8 @@ export default function WorkspaceProvider({
         setWorkspaceData,
         isLoading: false,
         toggleFolder,
-        saveFile,
+        saveFile, 
+        expandFolder,
       }}
     >
       {children}

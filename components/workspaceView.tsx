@@ -4,6 +4,7 @@ import { useWorkspaceContext } from "@/context/workspaceProvider";
 import { WorkspaceHeader } from "./workspaceHeader";
 import { File, Folder } from "lucide-react";
 import { useEffect, useState } from "react";
+import Breadcrumb from "./breadcrumb";
 
 const WorkspaceView = () => {
   const { workspaceData, toggleFolder, saveFile } = useWorkspaceContext();
@@ -42,6 +43,9 @@ const WorkspaceView = () => {
         }
         isDraft={isDraft}
       />
+
+      <Breadcrumb />
+
       <div className="p-2">
         {openFile ? (
           <div className="flex min-h-[460px] flex-col">
@@ -59,6 +63,7 @@ const WorkspaceView = () => {
                   e.preventDefault();
                   if (e.currentTarget.value !== openFile.content) {
                     saveFile(workspaceData.openFileId!, e.currentTarget.value);
+                    setIsDraft(false);
                   }
                 }
               }}

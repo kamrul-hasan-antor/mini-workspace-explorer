@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 const Sidebar = () => {
-  const { workspaceData, toggleFolder } = useWorkspaceContext();
+  const { workspaceData, toggleFolder, expandFolder } = useWorkspaceContext();
   const itemArray = buildItemArray(workspaceData.items);
 
   const selectedId = workspaceData.selectedFolderId || workspaceData.openFileId;
@@ -32,6 +32,7 @@ const Sidebar = () => {
             depth={0}
             expandedFolderIds={workspaceData.expandedFolderIds}
             onToggleFolder={toggleFolder}
+            onExpandFolder={expandFolder}
             selectedId={selectedId}
           />
         ))}
@@ -98,12 +99,14 @@ function TreeItem({
   depth,
   expandedFolderIds,
   onToggleFolder,
+  onExpandFolder,
   selectedId,
 }: {
   item: itemType;
   depth: number;
   expandedFolderIds: string[];
   onToggleFolder: (id: string, isFolder: boolean) => void;
+  onExpandFolder: (id: string) => void;
   selectedId: string | null;
 }) {
   const isFolder = item.type === "folder";
@@ -112,18 +115,25 @@ function TreeItem({
   return (
     <>
       <div
-        className={`flex min-w-0 cursor-pointer items-center gap-1 px-1 py-0.5 hover:bg-[var(--bg-activitybar)] ${selectedId === item.id ? "bg-[var(--bg-activitybar)]" : ""}`}
+        className={`flex min-w-0 cursor-pointer items-center gap-1 px-1 py-0.5 hover:bg-[var(--bg-workspace-header)] ${selectedId === item.id ? "bg-[var(--bg-activitybar)]" : ""}`}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
         onClick={() => {
           onToggleFolder(item.id, isFolder);
         }}
       >
         {isFolder ? (
-          isExpanded ? (
-            <ChevronDown className="size-3.5 shrink-0 text-[var(--text-muted)]" />
-          ) : (
-            <ChevronRight className="size-3.5 shrink-0 text-[var(--text-muted)]" />
-          )
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onExpandFolder(item.id);
+            }}
+          >
+            {isExpanded ? (
+              <ChevronDown className="size-3.5 shrink-0 text-[var(--text-muted)]" />
+            ) : (
+              <ChevronRight className="size-3.5 shrink-0 text-[var(--text-muted)]" />
+            )}
+          </div>
         ) : (
           <span className="size-3.5 shrink-0" aria-hidden />
         )}
@@ -145,6 +155,7 @@ function TreeItem({
               depth={depth + 1}
               expandedFolderIds={expandedFolderIds}
               onToggleFolder={onToggleFolder}
+              onExpandFolder={onExpandFolder}
               selectedId={selectedId}
             />
           ))
