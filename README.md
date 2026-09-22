@@ -2,6 +2,8 @@
 
 A VS Code–inspired file explorer built with Next.js. Browse a virtual workspace tree, create and rename folders and text files, search by name or content, edit files in the main pane, and persist everything in the browser via `localStorage`.
 
+**Live demo:** [https://mini-workspace-henna.vercel.app/](https://mini-workspace-henna.vercel.app/)
+
 ## How to run
 
 **Requirements:** Node.js 20+ and npm.
@@ -11,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) locally, or try the [live deployment](https://mini-workspace-henna.vercel.app/).
 
 | Script        | Description              |
 | ------------- | ------------------------ |
