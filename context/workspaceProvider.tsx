@@ -1,22 +1,80 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { STORAGE_KEY, createItems } from "@/lib/data";
+import type { localDataType } from "@/lib/types";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
-type workspaceContextValue = {
-  a: number;
-  //   workspaceData: localDataType;
-  //   setWorkspaceData: (workspaceData: localDataType) => void;
+type WorkspaceContextValue = {
+  workspaceData: localDataType;
+  setWorkspaceData: (workspaceData: localDataType) => void;
+  isLoading: boolean;
 };
 
-const WorkspaceContext = createContext<workspaceContextValue | null>(null);
+const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
+
+function readWorkspaceFromStorage(): localDataType {
+  const initial = {
+    items: createItems(),
+    selectedFolderId: "workspace",
+    openFileId: null,
+    expandedFolderIds: ["workspace", "projects", "webbly"],
+  };
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+      return initial;
+    }
+
+    const parsed: localDataType = JSON.parse(raw);
+
+    return parsed;
+  } catch {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+    return initial;
+  }
+}
 
 export default function WorkspaceProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [workspaceData, setWorkspaceDataState] = useState<localDataType | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const data = readWorkspaceFromStorage();
+    setWorkspaceDataState(data);
+    setIsLoading(false);
+  }, []);
+
+  const setWorkspaceData = useCallback((data: localDataType) => {
+    setWorkspaceDataState(data);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, []);
+
+  if (isLoading || !workspaceData) {
+    return (
+      <div className="flex min-h-full flex-1 items-center justify-center bg-[var(--bg)] text-sm text-[var(--text-muted)]">
+        Loading workspace…
+      </div>
+    );
+  }
+
   return (
-    <WorkspaceContext.Provider value={{ a: 1 }}>
+    <WorkspaceContext.Provider
+      value={{ workspaceData, setWorkspaceData, isLoading: false }}
+    >
       {children}
     </WorkspaceContext.Provider>
   );

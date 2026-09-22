@@ -1,4 +1,8 @@
-import { itemType } from "./types";
+import { itemType, localDataType } from "./types";
+
+const STORAGE_KEY = "mini-workspace-data";
+
+export { STORAGE_KEY };
 
 export function createItems(): Record<string, itemType> {
   const items: Record<string, itemType> = {
@@ -51,7 +55,7 @@ export function createItems(): Record<string, itemType> {
       id: "readme-txt",
       name: "README.txt",
       type: "file",
-      parentId: "documents",
+      parentId: "workspace",
       content:
         "Welcome to Mini Workspace Explorer.\n\nCreate folders and text files, search the tree, and edit content.\n",
     },

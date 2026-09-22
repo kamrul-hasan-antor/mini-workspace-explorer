@@ -6,11 +6,12 @@ export type itemType = {
   type: ItemType;
   parentId: string | null;
   content?: string; // for text files
+  children?: itemType[]; // for folders
 };
 
 export type localDataType = {
   items: Record<string, itemType>;
-  selectedFolderId: string;
+  selectedFolderId: string | null;
   openFileId: string | null;
   expandedFolderIds: string[];
 };
