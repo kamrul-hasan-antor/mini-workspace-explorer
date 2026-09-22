@@ -23,7 +23,7 @@ const Header = ({
       ) : (
         <span className="size-8 md:hidden" aria-hidden />
       )}
-      <h1 className="min-w-0 flex-1 truncate text-center text-sm font-medium text-white sm:text-base">
+      <h1 className="min-w-0 flex-1 truncate text-center font-medium text-white">
         Mini Workspace Explorer
       </h1>
       <span className="size-8 shrink-0 md:hidden" aria-hidden />
