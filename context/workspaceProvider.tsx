@@ -1,4 +1,5 @@
-import { localDataType } from "@/lib/types";
+"use client";
+
 import { createContext, useContext } from "react";
 
 type workspaceContextValue = {
@@ -23,8 +24,6 @@ export default function WorkspaceProvider({
 
 export function useWorkspaceContext() {
   const context = useContext(WorkspaceContext);
-
-  console.log(context);
   if (!context) {
     throw new Error("Workspace context not found");
   }
