@@ -13,7 +13,7 @@ import {
   FolderPlus,
   RotateCw,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const Sidebar = () => {
   const [newItemName, setNewItemName] = useState("");
@@ -23,33 +23,33 @@ const Sidebar = () => {
 
   const selectedId = workspaceData.selectedFolderId || workspaceData.openFileId;
 
+  const resolveParentId = (selectedItemId: string | null): string | null => {
+    if (!selectedItemId || !workspaceData.items[selectedItemId]) {
+      return "workspace";
+    }
+    const selected = workspaceData.items[selectedItemId];
+    return selected.type === "folder" ? selected.id : selected.parentId;
+  };
+
   const handleAddNewItem = (
-    selectedId: string,
+    selectedItemId: string | null,
     type: fileType,
     name: string,
-    isNew: boolean,
   ) => {
-    if (isNew) {
-      console.log(name);
-      setNewItemName(name);
+    const parentId = resolveParentId(selectedItemId);
+    if (!parentId || workspaceData.items[parentId]?.type !== "folder") {
+      return;
     }
 
-    const crrSelectedItem = workspaceData.items[selectedId];
+    setNewItemName(name);
 
-    const parentId =
-      crrSelectedItem.type === "folder"
-        ? crrSelectedItem.id
-        : crrSelectedItem.parentId;
-
-    const newItem = {
+    const newItem: itemType = {
       id: new Date().getTime().toString(),
       name,
       type,
       parentId,
-      ...(crrSelectedItem.type === "folder"
-        ? { children: [] }
-        : { content: "" }),
-      ...(isNew ? { isNew } : {}),
+      isNew: true,
+      ...(type === "folder" ? { children: [] } : { content: "" }),
     };
 
     setWorkspaceData({
@@ -58,17 +58,55 @@ const Sidebar = () => {
         ...workspaceData.items,
         [newItem.id]: newItem,
       },
+      expandedFolderIds: workspaceData.expandedFolderIds.includes(parentId)
+        ? workspaceData.expandedFolderIds
+        : [...workspaceData.expandedFolderIds, parentId],
     });
   };
 
-  const handleUpdateNewItemName = (newItem: itemType) => {
+  const handleFinalizeNewItem = (
+    item: itemType,
+    name: string,
+  ): { ok: true } | { ok: false; error: string } => {
+    if (!item.parentId) {
+      return { ok: false, error: "Invalid folder." };
+    }
+
+    const siblings = getSiblingNames(
+      workspaceData.items,
+      item.parentId,
+      item.id,
+    );
+    const validationError = validateItemName(name, siblings);
+    if (validationError) {
+      return { ok: false, error: validationError };
+    }
+
+    const trimmed = name.trim();
+    const { isNew: _isNew, ...rest } = item;
+    const finalized: itemType = { ...rest, name: trimmed };
+
     setWorkspaceData({
       ...workspaceData,
       items: {
         ...workspaceData.items,
-        [newItem.id]: newItem,
+        [item.id]: finalized,
       },
+      ...(item.type === "file"
+        ? { openFileId: item.id, selectedFolderId: null }
+        : { selectedFolderId: item.id, openFileId: null }),
     });
+    setNewItemName("");
+    return { ok: true };
+  };
+
+  const handleCancelNewItem = (itemId: string) => {
+    const { [itemId]: _removed, ...restItems } = workspaceData.items;
+    setWorkspaceData({
+      ...workspaceData,
+      items: restItems,
+    });
+    setNewItemName("");
   };
 
   return (
@@ -88,7 +126,8 @@ const Sidebar = () => {
             selectedId={selectedId}
             newItemName={newItemName}
             setNewItemName={setNewItemName}
-            onUpdateNewItemName={handleUpdateNewItemName}
+            onFinalizeNewItem={handleFinalizeNewItem}
+            onCancelNewItem={handleCancelNewItem}
           />
         ))}
       </div>
@@ -101,14 +140,13 @@ const ActionArea = ({
   selectedId,
 }: {
   onAddNewItem: (
-    selectedId: string,
+    selectedId: string | null,
     type: fileType,
     name: string,
-    isNew: boolean,
   ) => void;
   selectedId: string | null;
 }) => {
-  const { setWorkspaceData } = useWorkspaceContext();
+  const { workspaceData, setWorkspaceData } = useWorkspaceContext();
 
   const handleReset = () => {
     const initial = {
@@ -129,16 +167,16 @@ const ActionArea = ({
         <ActionButton
           icon={<FilePlusCorner className="size-3.5" />}
           onClick={() => {
-            onAddNewItem(selectedId || "", "file", "untitled.txt", true);
+            onAddNewItem(selectedId, "file", "untitled.txt");
           }}
           title="New File"
         />
         <ActionButton
           icon={<FolderPlus className="size-3.5" />}
           onClick={() => {
-            onAddNewItem(selectedId || "", "folder", "new folder", true);
+            onAddNewItem(selectedId, "folder", "new folder");
           }}
-          title="New File"
+          title="New Folder"
         />
         <ActionButton
           icon={<RotateCw className="size-3.5 -rotate-180" />}
@@ -149,7 +187,12 @@ const ActionArea = ({
         />
         <ActionButton
           icon={<CopyMinus className="size-3.5 scale-x-[-1]" />}
-          onClick={() => {}}
+          onClick={() => {
+            setWorkspaceData({
+              ...workspaceData,
+              expandedFolderIds: [],
+            });
+          }}
           title="Collapse All"
         />
       </div>
@@ -187,7 +230,8 @@ function TreeItem({
   selectedId,
   newItemName,
   setNewItemName,
-  onUpdateNewItemName,
+  onFinalizeNewItem,
+  onCancelNewItem,
 }: {
   item: itemType;
   depth: number;
@@ -197,11 +241,28 @@ function TreeItem({
   selectedId: string | null;
   newItemName: string;
   setNewItemName: (name: string) => void;
-  onUpdateNewItemName: (newItem: itemType) => void;
+  onFinalizeNewItem: (
+    item: itemType,
+    name: string,
+  ) => { ok: true } | { ok: false; error: string };
+  onCancelNewItem: (itemId: string) => void;
 }) {
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolderIds.includes(item.id);
-  const isNew = "isNew" in item && item.isNew;
+  const isNew = Boolean(item.isNew);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const tryFinalize = (name: string) => {
+    const result = onFinalizeNewItem(item, name);
+    if (result.ok) {
+      setError(null);
+      return;
+    }
+    setError(result.error);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   return (
     <>
       <div
@@ -235,24 +296,56 @@ function TreeItem({
         )}
 
         {isNew ? (
-          <input
-            autoFocus
-            value={newItemName}
-            onChange={(e) => {
-              setNewItemName(e.target.value);
-            }}
-            onBlur={(e) => {
-              console.log(item);
-              return;
-              onUpdateNewItemName({
-                ...item,
-                name: e.target.value,
-                isNew: false,
-              });
-            }}
-            type="text"
-            className="w-full border outline-none border-white/70 rounded px-1 py-0.5"
-          />
+          <div
+            className="min-w-0 flex-1 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              ref={inputRef}
+              autoFocus
+              value={newItemName}
+              onChange={(e) => {
+                setNewItemName(e.target.value);
+                if (error) {
+                  setError(null);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  tryFinalize(newItemName);
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  onCancelNewItem(item.id);
+                }
+              }}
+              onBlur={(e) => {
+                const value = e.target.value;
+                if (!value.trim()) {
+                  onCancelNewItem(item.id);
+                  return;
+                }
+                tryFinalize(value);
+              }}
+              type="text"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? `new-item-error-${item.id}` : undefined}
+              className={`w-full rounded border px-1 py-0.5 outline-none ${
+                error
+                  ? "border-red-500"
+                  : "border-white/70 focus:border-[var(--text-muted)]"
+              }`}
+            />
+            {error ? (
+              <p
+                id={`new-item-error-${item.id}`}
+                className="mt-0.5 text-[11px] leading-tight text-red-400 absolute top-full z-10 border border-red-500 rounded-md px-1 py-0.5 left-0 bg-[var(--bg-sidebar)]"
+              >
+                {error}
+              </p>
+            ) : null}
+          </div>
         ) : (
           <p className="min-w-0 truncate truncate select-none">{item.name}</p>
         )}
@@ -270,12 +363,35 @@ function TreeItem({
               selectedId={selectedId}
               newItemName={newItemName}
               setNewItemName={setNewItemName}
-              onUpdateNewItemName={onUpdateNewItemName}
+              onFinalizeNewItem={onFinalizeNewItem}
+              onCancelNewItem={onCancelNewItem}
             />
           ))
         : null}
     </>
   );
+}
+
+function getSiblingNames(
+  items: Record<string, itemType>,
+  parentId: string,
+  excludeItemId?: string,
+): string[] {
+  return Object.values(items)
+    .filter((item) => item.parentId === parentId && item.id !== excludeItemId)
+    .map((item) => item.name);
+}
+
+function validateItemName(name: string, siblingNames: string[]): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return "Name cannot be empty.";
+  }
+  const lower = trimmed.toLowerCase();
+  if (siblingNames.some((sibling) => sibling.toLowerCase() === lower)) {
+    return "An item with this name already exists in this folder.";
+  }
+  return null;
 }
 
 function buildItemArray(data: Record<string, itemType>): itemType[] {
