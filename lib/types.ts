@@ -1,12 +1,13 @@
-export type ItemType = "folder" | "file";
+export type fileType = "folder" | "file";
 
 export type itemType = {
   id: string;
   name: string;
-  type: ItemType;
+  type: fileType;
   parentId: string | null;
   content?: string; // for text files
   children?: itemType[]; // for folders
+  isNew?: boolean; // for new items
 };
 
 export type localDataType = {

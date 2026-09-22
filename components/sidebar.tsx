@@ -1,7 +1,8 @@
 "use client";
 
 import { useWorkspaceContext } from "@/context/workspaceProvider";
-import { itemType } from "@/lib/types";
+import { createItems } from "@/lib/data";
+import { fileType, itemType } from "@/lib/types";
 import {
   ChevronDown,
   ChevronRight,
@@ -12,17 +13,68 @@ import {
   FolderPlus,
   RotateCw,
 } from "lucide-react";
+import { useState } from "react";
 
 const Sidebar = () => {
-  const { workspaceData, toggleFolder, expandFolder } = useWorkspaceContext();
+  const [newItemName, setNewItemName] = useState("");
+  const { workspaceData, toggleFolder, expandFolder, setWorkspaceData } =
+    useWorkspaceContext();
   const itemArray = buildItemArray(workspaceData.items);
 
   const selectedId = workspaceData.selectedFolderId || workspaceData.openFileId;
 
+  const handleAddNewItem = (
+    selectedId: string,
+    type: fileType,
+    name: string,
+    isNew: boolean,
+  ) => {
+    if (isNew) {
+      console.log(name);
+      setNewItemName(name);
+    }
+
+    const crrSelectedItem = workspaceData.items[selectedId];
+
+    const parentId =
+      crrSelectedItem.type === "folder"
+        ? crrSelectedItem.id
+        : crrSelectedItem.parentId;
+
+    const newItem = {
+      id: new Date().getTime().toString(),
+      name,
+      type,
+      parentId,
+      ...(crrSelectedItem.type === "folder"
+        ? { children: [] }
+        : { content: "" }),
+      ...(isNew ? { isNew } : {}),
+    };
+
+    setWorkspaceData({
+      ...workspaceData,
+      items: {
+        ...workspaceData.items,
+        [newItem.id]: newItem,
+      },
+    });
+  };
+
+  const handleUpdateNewItemName = (newItem: itemType) => {
+    setWorkspaceData({
+      ...workspaceData,
+      items: {
+        ...workspaceData.items,
+        [newItem.id]: newItem,
+      },
+    });
+  };
+
   return (
     <div className="group min-h-0 border-r border-r bg-[var(--bg-sidebar)] md:w-[260px] border-r-[var(--border)]">
       <div className="h-8 flex items-center px-3 border-b border-b-[var(--border)]">
-        <ActionArea />
+        <ActionArea onAddNewItem={handleAddNewItem} selectedId={selectedId} />
       </div>
       <div className="py-2">
         {itemArray.map((item) => (
@@ -34,6 +86,9 @@ const Sidebar = () => {
             onToggleFolder={toggleFolder}
             onExpandFolder={expandFolder}
             selectedId={selectedId}
+            newItemName={newItemName}
+            setNewItemName={setNewItemName}
+            onUpdateNewItemName={handleUpdateNewItemName}
           />
         ))}
       </div>
@@ -41,7 +96,30 @@ const Sidebar = () => {
   );
 };
 
-const ActionArea = () => {
+const ActionArea = ({
+  onAddNewItem,
+  selectedId,
+}: {
+  onAddNewItem: (
+    selectedId: string,
+    type: fileType,
+    name: string,
+    isNew: boolean,
+  ) => void;
+  selectedId: string | null;
+}) => {
+  const { setWorkspaceData } = useWorkspaceContext();
+
+  const handleReset = () => {
+    const initial = {
+      items: createItems(),
+      selectedFolderId: "workspace",
+      openFileId: null,
+      expandedFolderIds: ["workspace", "projects", "webbly"],
+    };
+    setWorkspaceData(initial);
+  };
+
   return (
     <div className="flex items-center justify-between">
       <p className="min-w-0 flex-1 truncate text-xs text-[var(--text-muted)]">
@@ -50,17 +128,23 @@ const ActionArea = () => {
       <div className="hidden group-hover:flex items-center flex-1 justify-end">
         <ActionButton
           icon={<FilePlusCorner className="size-3.5" />}
-          onClick={() => {}}
+          onClick={() => {
+            onAddNewItem(selectedId || "", "file", "untitled.txt", true);
+          }}
           title="New File"
         />
         <ActionButton
           icon={<FolderPlus className="size-3.5" />}
-          onClick={() => {}}
+          onClick={() => {
+            onAddNewItem(selectedId || "", "folder", "new folder", true);
+          }}
           title="New File"
         />
         <ActionButton
           icon={<RotateCw className="size-3.5 -rotate-180" />}
-          onClick={() => {}}
+          onClick={() => {
+            handleReset();
+          }}
           title="Reset"
         />
         <ActionButton
@@ -101,6 +185,9 @@ function TreeItem({
   onToggleFolder,
   onExpandFolder,
   selectedId,
+  newItemName,
+  setNewItemName,
+  onUpdateNewItemName,
 }: {
   item: itemType;
   depth: number;
@@ -108,10 +195,13 @@ function TreeItem({
   onToggleFolder: (id: string, isFolder: boolean) => void;
   onExpandFolder: (id: string) => void;
   selectedId: string | null;
+  newItemName: string;
+  setNewItemName: (name: string) => void;
+  onUpdateNewItemName: (newItem: itemType) => void;
 }) {
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolderIds.includes(item.id);
-
+  const isNew = "isNew" in item && item.isNew;
   return (
     <>
       <div
@@ -144,7 +234,28 @@ function TreeItem({
           <File className="size-4 shrink-0" />
         )}
 
-        <p className="min-w-0 truncate truncate select-none">{item.name}</p>
+        {isNew ? (
+          <input
+            autoFocus
+            value={newItemName}
+            onChange={(e) => {
+              setNewItemName(e.target.value);
+            }}
+            onBlur={(e) => {
+              console.log(item);
+              return;
+              onUpdateNewItemName({
+                ...item,
+                name: e.target.value,
+                isNew: false,
+              });
+            }}
+            type="text"
+            className="w-full border outline-none border-white/70 rounded px-1 py-0.5"
+          />
+        ) : (
+          <p className="min-w-0 truncate truncate select-none">{item.name}</p>
+        )}
       </div>
 
       {isFolder && isExpanded
@@ -157,6 +268,9 @@ function TreeItem({
               onToggleFolder={onToggleFolder}
               onExpandFolder={onExpandFolder}
               selectedId={selectedId}
+              newItemName={newItemName}
+              setNewItemName={setNewItemName}
+              onUpdateNewItemName={onUpdateNewItemName}
             />
           ))
         : null}
