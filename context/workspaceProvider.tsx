@@ -14,6 +14,7 @@ type WorkspaceContextValue = {
   workspaceData: localDataType;
   setWorkspaceData: (workspaceData: localDataType) => void;
   isLoading: boolean;
+  toggleFolder: (id: string, isFolder: boolean) => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -63,6 +64,22 @@ export default function WorkspaceProvider({
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }, []);
 
+  const toggleFolder = useCallback(
+    (id: string, isFolder: boolean) => {
+      if (!workspaceData) return;
+      const { expandedFolderIds } = workspaceData;
+      setWorkspaceData({
+        ...workspaceData,
+        expandedFolderIds: expandedFolderIds.includes(id)
+          ? expandedFolderIds.filter((folderId) => folderId !== id)
+          : [...expandedFolderIds, id],
+        selectedFolderId: isFolder ? id : null,
+        openFileId: isFolder ? null : id,
+      });
+    },
+    [workspaceData],
+  );
+
   if (isLoading || !workspaceData) {
     return (
       <div className="flex min-h-full flex-1 items-center justify-center bg-[var(--bg)] text-sm text-[var(--text-muted)]">
@@ -73,7 +90,12 @@ export default function WorkspaceProvider({
 
   return (
     <WorkspaceContext.Provider
-      value={{ workspaceData, setWorkspaceData, isLoading: false }}
+      value={{
+        workspaceData,
+        setWorkspaceData,
+        isLoading: false,
+        toggleFolder,
+      }}
     >
       {children}
     </WorkspaceContext.Provider>

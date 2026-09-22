@@ -1,31 +1,63 @@
+"use client";
+
 import { useWorkspaceContext } from "@/context/workspaceProvider";
 import { WorkspaceHeader } from "./workspaceHeader";
 import { File, Folder } from "lucide-react";
 
 const WorkspaceView = () => {
-  const { workspaceData } = useWorkspaceContext();
-
-  const selectedId =
-    workspaceData.selectedFolderId || workspaceData.openFileId || null;
+  const { workspaceData, toggleFolder } = useWorkspaceContext();
 
   const itemArr = workspaceData.items ? Object.values(workspaceData.items) : [];
 
-  const selectedItemArr = itemArr.filter((item) => {
-    const id = item.type === "file" ? item.id : item.parentId;
+  const openFile = workspaceData.openFileId
+    ? workspaceData.items[workspaceData.openFileId]
+    : null;
 
-    return item.parentId === selectedId;
-  });
+  const folderChildren =
+    workspaceData.selectedFolderId && !openFile
+      ? itemArr.filter(
+          (item) => item.parentId === workspaceData.selectedFolderId,
+        )
+      : [];
 
-  console.log(selectedId, selectedItemArr);
   return (
     <div>
-      <WorkspaceHeader />
+      <WorkspaceHeader
+        fileName={openFile ? openFile.name : null}
+        folderName={
+          workspaceData.items[workspaceData?.selectedFolderId ?? ""]?.name ??
+          null
+        }
+      />
       <div className="p-2">
-        {selectedItemArr.length > 0 ? (
-          selectedItemArr.map((item) => {
+        {openFile ? (
+          <div className="flex min-h-[460px] flex-col">
+            <textarea
+              value={openFile.content ?? ""}
+              // onChange={(e) => {
+              //   setDraft(e.target.value);
+              //   setDirty(e.target.value !== savedContent ? fileId : null);
+              // }}
+              // onKeyDown={(e) => {
+              //   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+              //     e.preventDefault();
+              //     if (e.currentTarget.value !== savedContent) {
+              //       saveFile(fileId, e.currentTarget.value);
+              //     }
+              //   }
+              // }}
+              spellCheck={false}
+              className="min-h-0 flex-1 resize-none bg-[var(--vscode-editor)] p-2 leading-6 text-[#d4d4d4] outline-none"
+            />
+          </div>
+        ) : folderChildren.length > 0 ? (
+          folderChildren.map((item) => {
             const isFolder = item.type === "folder";
             return (
-              <div key={item.id}>
+              <div
+                key={item.id}
+                onClick={() => toggleFolder(item.id, isFolder)}
+              >
                 <div
                   className={`flex min-w-0 cursor-pointer items-center gap-1 rounded px-3 py-1 hover:bg-[var(--bg-activitybar)]`}
                 >

@@ -14,20 +14,8 @@ import {
 } from "lucide-react";
 
 const Sidebar = () => {
-  const { workspaceData, setWorkspaceData } = useWorkspaceContext();
+  const { workspaceData, toggleFolder } = useWorkspaceContext();
   const itemArray = buildItemArray(workspaceData.items);
-
-  const toggleFolder = (id: string, isFolder: boolean) => {
-    const { expandedFolderIds } = workspaceData;
-    setWorkspaceData({
-      ...workspaceData,
-      expandedFolderIds: expandedFolderIds.includes(id)
-        ? expandedFolderIds.filter((folderId) => folderId !== id)
-        : [...expandedFolderIds, id],
-      selectedFolderId: isFolder ? id : null,
-      openFileId: isFolder ? null : id,
-    });
-  };
 
   const selectedId = workspaceData.selectedFolderId || workspaceData.openFileId;
 
