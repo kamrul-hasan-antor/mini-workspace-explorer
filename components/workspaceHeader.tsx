@@ -3,9 +3,11 @@ import { File, X } from "lucide-react";
 export const WorkspaceHeader = ({
   fileName,
   folderName,
+  isDraft,
 }: {
   fileName: string | null;
   folderName: string | null;
+  isDraft: boolean;
 }) => {
   return (
     <div className="flex items-center h-8 border-b border-b-[var(--border)] bg-[var(--bg-workspace-header)]">
@@ -14,7 +16,7 @@ export const WorkspaceHeader = ({
           <div className="flex items-center gap-1">
             <File className="size-4" />
             <p className="text-[var(--text-muted)]">{fileName}</p>
-            <div className="size-1.25 bg-[#777] rounded-full" />
+            {isDraft && <div className="size-1.25 bg-[#777] rounded-full" />}
           </div>
           <button className="hover:bg-[var(--bg-header)] rounded cursor-pointer p-0.5">
             <X className="size-3" />

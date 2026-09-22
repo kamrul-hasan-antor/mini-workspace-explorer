@@ -15,6 +15,7 @@ type WorkspaceContextValue = {
   setWorkspaceData: (workspaceData: localDataType) => void;
   isLoading: boolean;
   toggleFolder: (id: string, isFolder: boolean) => void;
+  saveFile: (id: string, content: string) => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -80,6 +81,22 @@ export default function WorkspaceProvider({
     [workspaceData],
   );
 
+  const saveFile = useCallback(
+    (id: string, content: string) => {
+      if (!workspaceData) return;
+      const { items } = workspaceData;
+      console.log({
+        ...workspaceData,
+        items: { ...items, [id]: { ...items[id], content } },
+      });
+      setWorkspaceData({
+        ...workspaceData,
+        items: { ...items, [id]: { ...items[id], content } },
+      });
+    },
+    [workspaceData],
+  );
+
   if (isLoading || !workspaceData) {
     return (
       <div className="flex min-h-full flex-1 items-center justify-center bg-[var(--bg)] text-sm text-[var(--text-muted)]">
@@ -95,6 +112,7 @@ export default function WorkspaceProvider({
         setWorkspaceData,
         isLoading: false,
         toggleFolder,
+        saveFile,
       }}
     >
       {children}

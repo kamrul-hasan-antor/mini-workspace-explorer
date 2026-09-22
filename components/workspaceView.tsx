@@ -3,9 +3,13 @@
 import { useWorkspaceContext } from "@/context/workspaceProvider";
 import { WorkspaceHeader } from "./workspaceHeader";
 import { File, Folder } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const WorkspaceView = () => {
-  const { workspaceData, toggleFolder } = useWorkspaceContext();
+  const { workspaceData, toggleFolder, saveFile } = useWorkspaceContext();
+
+  const [fileContent, setFileContent] = useState<string | null>(null);
+  const [isDraft, setIsDraft] = useState<boolean>(false);
 
   const itemArr = workspaceData.items ? Object.values(workspaceData.items) : [];
 
@@ -20,6 +24,14 @@ const WorkspaceView = () => {
         )
       : [];
 
+  useEffect(() => {
+    if (workspaceData.openFileId) {
+      setFileContent(
+        workspaceData.items[workspaceData.openFileId]?.content ?? null,
+      );
+    }
+  }, [workspaceData.openFileId]);
+
   return (
     <div>
       <WorkspaceHeader
@@ -28,24 +40,28 @@ const WorkspaceView = () => {
           workspaceData.items[workspaceData?.selectedFolderId ?? ""]?.name ??
           null
         }
+        isDraft={isDraft}
       />
       <div className="p-2">
         {openFile ? (
           <div className="flex min-h-[460px] flex-col">
             <textarea
-              value={openFile.content ?? ""}
-              // onChange={(e) => {
-              //   setDraft(e.target.value);
-              //   setDirty(e.target.value !== savedContent ? fileId : null);
-              // }}
-              // onKeyDown={(e) => {
-              //   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-              //     e.preventDefault();
-              //     if (e.currentTarget.value !== savedContent) {
-              //       saveFile(fileId, e.currentTarget.value);
-              //     }
-              //   }
-              // }}
+              value={fileContent ?? ""}
+              onChange={(e) => {
+                setFileContent(e.target.value);
+
+                if (e.target.value !== openFile.content) {
+                  setIsDraft(true);
+                } else if (isDraft) setIsDraft(false);
+              }}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+                  e.preventDefault();
+                  if (e.currentTarget.value !== openFile.content) {
+                    saveFile(workspaceData.openFileId!, e.currentTarget.value);
+                  }
+                }
+              }}
               spellCheck={false}
               className="min-h-0 flex-1 resize-none bg-[var(--vscode-editor)] p-2 leading-6 text-[#d4d4d4] outline-none"
             />
