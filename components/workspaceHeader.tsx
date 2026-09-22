@@ -11,7 +11,7 @@ export const WorkspaceHeader = () => {
         <div className="flex items-center gap-1">
           <File className="size-4" />
           <p className="text-[var(--text-muted)]">file.txt</p>
-          <div className="size-1.5 bg-[#777] rounded-full" />
+          <div className="size-1.25 bg-[#777] rounded-full" />
         </div>
         <button className="hover:bg-[var(--bg-header)] rounded cursor-pointer p-0.5">
           <X className="size-3" />
