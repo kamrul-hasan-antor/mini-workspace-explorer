@@ -13,10 +13,19 @@ import {
   FolderPlus,
   RotateCw,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+type ContextMenuState = {
+  item: itemType;
+  x: number;
+  y: number;
+} | null;
 
 const Sidebar = () => {
   const [newItemName, setNewItemName] = useState("");
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
+  const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const { workspaceData, toggleFolder, expandFolder, setWorkspaceData } =
     useWorkspaceContext();
   const itemArray = buildItemArray(workspaceData.items);
@@ -109,8 +118,99 @@ const Sidebar = () => {
     setNewItemName("");
   };
 
+  const handleFinalizeRename = (
+    item: itemType,
+    name: string,
+  ): { ok: true } | { ok: false; error: string } => {
+    if (!item.parentId) {
+      return { ok: false, error: "Invalid folder." };
+    }
+
+    const siblings = getSiblingNames(
+      workspaceData.items,
+      item.parentId,
+      item.id,
+    );
+    const validationError = validateItemName(name, siblings);
+    if (validationError) {
+      return { ok: false, error: validationError };
+    }
+
+    setWorkspaceData({
+      ...workspaceData,
+      items: {
+        ...workspaceData.items,
+        [item.id]: { ...item, name: name.trim() },
+      },
+    });
+    setRenamingItemId(null);
+    setRenameValue("");
+    return { ok: true };
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    const item = workspaceData.items[itemId];
+    if (!item || item.parentId === null) {
+      return;
+    }
+
+    const idsToDelete = new Set(
+      collectDescendantIds(workspaceData.items, itemId),
+    );
+    const items = Object.fromEntries(
+      Object.entries(workspaceData.items).filter(
+        ([id]) => !idsToDelete.has(id),
+      ),
+    );
+
+    let { selectedFolderId, openFileId, expandedFolderIds } = workspaceData;
+    const fallbackParent = item.parentId ?? "workspace";
+
+    if (openFileId && idsToDelete.has(openFileId)) {
+      openFileId = null;
+      selectedFolderId = fallbackParent;
+    }
+    if (selectedFolderId && idsToDelete.has(selectedFolderId)) {
+      selectedFolderId = fallbackParent;
+    }
+
+    expandedFolderIds = expandedFolderIds.filter((id) => !idsToDelete.has(id));
+
+    setWorkspaceData({
+      ...workspaceData,
+      items,
+      selectedFolderId,
+      openFileId,
+      expandedFolderIds,
+    });
+  };
+
+  useEffect(() => {
+    if (!contextMenu) {
+      return;
+    }
+
+    const closeMenu = () => setContextMenu(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      window.addEventListener("click", closeMenu);
+    }, 0);
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [contextMenu]);
+
   return (
-    <div className="group min-h-0 border-r border-r bg-[var(--bg-sidebar)] md:w-[260px] border-r-[var(--border)]">
+    <div className="group relative min-h-0 border-r border-r bg-[var(--bg-sidebar)] md:w-[260px] border-r-[var(--border)]">
       <div className="h-8 flex items-center px-3 border-b border-b-[var(--border)]">
         <ActionArea onAddNewItem={handleAddNewItem} selectedId={selectedId} />
       </div>
@@ -128,12 +228,79 @@ const Sidebar = () => {
             setNewItemName={setNewItemName}
             onFinalizeNewItem={handleFinalizeNewItem}
             onCancelNewItem={handleCancelNewItem}
+            renamingItemId={renamingItemId}
+            renameValue={renameValue}
+            setRenameValue={setRenameValue}
+            onFinalizeRename={handleFinalizeRename}
+            onCancelRename={() => {
+              setRenamingItemId(null);
+              setRenameValue("");
+            }}
+            onContextMenuItem={(event, treeItem) => {
+              if (treeItem.isNew) {
+                return;
+              }
+              event.preventDefault();
+              event.stopPropagation();
+              setContextMenu({
+                item: treeItem,
+                x: event.clientX,
+                y: event.clientY,
+              });
+            }}
           />
         ))}
       </div>
+      {contextMenu ? (
+        <div
+          className="fixed z-50 min-w-[120px] rounded border border-[var(--border)] bg-[#252526] shadow-lg"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(event) => event.stopPropagation()}
+          role="menu"
+        >
+          <ContextMenuButton
+            label="Rename"
+            onClick={() => {
+              setRenamingItemId(contextMenu.item.id);
+              setRenameValue(contextMenu.item.name);
+              setContextMenu(null);
+            }}
+          />
+          <ContextMenuButton
+            label="Delete"
+            disabled={contextMenu.item.parentId === null}
+            onClick={() => {
+              handleDeleteItem(contextMenu.item.id);
+              setContextMenu(null);
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 };
+
+function ContextMenuButton({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onClick}
+      className="block w-full px-3 py-1 text-left hover:bg-[var(--bg-activitybar)] disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {label}
+    </button>
+  );
+}
 
 const ActionArea = ({
   onAddNewItem,
@@ -232,6 +399,12 @@ function TreeItem({
   setNewItemName,
   onFinalizeNewItem,
   onCancelNewItem,
+  renamingItemId,
+  renameValue,
+  setRenameValue,
+  onFinalizeRename,
+  onCancelRename,
+  onContextMenuItem,
 }: {
   item: itemType;
   depth: number;
@@ -246,15 +419,35 @@ function TreeItem({
     name: string,
   ) => { ok: true } | { ok: false; error: string };
   onCancelNewItem: (itemId: string) => void;
+  renamingItemId: string | null;
+  renameValue: string;
+  setRenameValue: (name: string) => void;
+  onFinalizeRename: (
+    item: itemType,
+    name: string,
+  ) => { ok: true } | { ok: false; error: string };
+  onCancelRename: () => void;
+  onContextMenuItem: (event: React.MouseEvent, item: itemType) => void;
 }) {
   const isFolder = item.type === "folder";
   const isExpanded = expandedFolderIds.includes(item.id);
   const isNew = Boolean(item.isNew);
+  const isRenaming = renamingItemId === item.id;
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const tryFinalize = (name: string) => {
     const result = onFinalizeNewItem(item, name);
+    if (result.ok) {
+      setError(null);
+      return;
+    }
+    setError(result.error);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const tryFinalizeRename = (name: string) => {
+    const result = onFinalizeRename(item, name);
     if (result.ok) {
       setError(null);
       return;
@@ -269,8 +462,12 @@ function TreeItem({
         className={`flex min-w-0 cursor-pointer items-center gap-1 px-1 py-0.5 hover:bg-[var(--bg-workspace-header)] ${selectedId === item.id ? "bg-[var(--bg-activitybar)]" : ""}`}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
         onClick={() => {
+          if (isRenaming) {
+            return;
+          }
           onToggleFolder(item.id, isFolder);
         }}
+        onContextMenu={(event) => onContextMenuItem(event, item)}
       >
         {isFolder ? (
           <div
@@ -346,6 +543,55 @@ function TreeItem({
               </p>
             ) : null}
           </div>
+        ) : isRenaming ? (
+          <div
+            className="min-w-0 flex-1 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              ref={inputRef}
+              autoFocus
+              value={renameValue}
+              onChange={(e) => {
+                setRenameValue(e.target.value);
+                if (error) {
+                  setError(null);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  tryFinalizeRename(renameValue);
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  onCancelRename();
+                  setError(null);
+                }
+              }}
+              onBlur={(e) => {
+                tryFinalizeRename(e.target.value);
+              }}
+              type="text"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={
+                error ? `rename-item-error-${item.id}` : undefined
+              }
+              className={`w-full rounded border px-1 py-0.5 outline-none ${
+                error
+                  ? "border-red-500"
+                  : "border-white/70 focus:border-[var(--text-muted)]"
+              }`}
+            />
+            {error ? (
+              <p
+                id={`rename-item-error-${item.id}`}
+                className="mt-0.5 text-[11px] leading-tight text-red-400 absolute top-full z-10 border border-red-500 rounded-md px-1 py-0.5 left-0 bg-[var(--bg-sidebar)]"
+              >
+                {error}
+              </p>
+            ) : null}
+          </div>
         ) : (
           <p className="min-w-0 truncate truncate select-none">{item.name}</p>
         )}
@@ -365,6 +611,12 @@ function TreeItem({
               setNewItemName={setNewItemName}
               onFinalizeNewItem={onFinalizeNewItem}
               onCancelNewItem={onCancelNewItem}
+              renamingItemId={renamingItemId}
+              renameValue={renameValue}
+              setRenameValue={setRenameValue}
+              onFinalizeRename={onFinalizeRename}
+              onCancelRename={onCancelRename}
+              onContextMenuItem={onContextMenuItem}
             />
           ))
         : null}
@@ -392,6 +644,19 @@ function validateItemName(name: string, siblingNames: string[]): string | null {
     return "An item with this name already exists in this folder.";
   }
   return null;
+}
+
+function collectDescendantIds(
+  items: Record<string, itemType>,
+  rootId: string,
+): string[] {
+  const ids = [rootId];
+  for (const item of Object.values(items)) {
+    if (item.parentId === rootId) {
+      ids.push(...collectDescendantIds(items, item.id));
+    }
+  }
+  return ids;
 }
 
 function buildItemArray(data: Record<string, itemType>): itemType[] {
